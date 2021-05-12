@@ -1,0 +1,113 @@
+
+
+2021-05-09,20点08
+
+读redis代码:
+
+https://github.com/zhangbo2008/How_to_debug_C_by_vscode_on_linux_remoteMode
+
+
+
+为什么学redis源码:-------->pytorch代码. cpp写.
+
+1.为了学C, 脚本化.----小
+  项目化.----大
+
+2.一定要学会在linux下调试. gdb
+  用vscode, clion:破解困难.
+  发现vscode功能已经足够了.
+3. c项目-----cmake ,makefile
+   make好处在.如果代码不动的地方,重新make整个项目的时候,不动的地方也不会
+   重现编译.提高了编译整个项目的速度
+   
+4. makefile
+
+5.
+	我要调试zipmap.c代码
+
+	1.找到他所有的依赖.这个文件比较好, 只依赖zmalloc.c
+	2.看他的代码.发现最后有一行为了方便我们用已经写好的.
+		#ifdef ZIPMAP_TEST_MAIN
+		下面就是main函数了.记住gcc一定要有main函数才能编译成功.
+		所以我们再这样上面加上这个定义即可.打开下面的函数.
+		写上这个#define ZIPMAP_TEST_MAIN   启动测试.
+	3. cd 进入src目录 然后gcc zmalloc.c   zipmap.c -g直接陈宫
+	4. ./a.out 直接看到结果
+	5.配置 .vscode/launch.json 里面:  "program": "${workspaceFolder}/src/a.out",
+	6.断点打到zipmap.c里面main函数里面第一行.
+	7.运行debug即可.直接进来了!!!!!!!这回可以精细的玩redis了.
+
+
+
+
+	8. 如何开启宏定义:https://blog.csdn.net/zhangjs0322/article/details/39666889
+
+
+	9.所以总结一句话.上面的gcc命令应该为这个: 
+	gcc zmalloc.c   zipmap.c -g -g3 -gdwarf-2
+
+
+
+10.stl cpp里面. 大量汇编.
+
+
+11.https://github.com/zhangbo2008/do_while_0_explanation
+
+https://github.com/zhangbo2008/learn-static-and-extern-in-C
+
+
+
+12.在定义不需要与其他文件共享的全局变量时，加上static关键字能够有效地降低程序模块之间的耦合，
+避免不同文件同名变量的冲突，且不会误使用。
+
+
+13.读完了sds.c 太简单
+14. 读util.c .
+	首先上来还是编译.
+	gcc util.c sds.c  zmalloc.c -g -g3 -gdwarf-2
+	
+	
+	读完
+15.下一个ziplist.c
+	
+	gcc  ziplist.c util.c sds.c  zmalloc.c   redisassert.h  -g -g3 -gdwarf-2
+	
+	依赖adlist.c
+	先读adlist.c
+	这个文件没有测试代码.
+	只能直接读,不debug了.
+	读adlist.c 配合adlist.h 一起看.
+	读完了adlist.c
+16.2021-05-11,9点42
+   然后读ziplist.c
+   开启测试:
+   gcc  lua.h debug.c ziplist.c util.c sds.c  zmalloc.c   redisassert.h  -g -g3 -gdwarf-2
+   编译发现找不到_redisAssert. 源码找到这个东西.
+   需要#include "redisassert.h"
+   里面掉了这个函数,这个函数又在debug.c里面
+   
+   所以我们先去读了debug.c
+   直接这个代码里面搜索main. 发现没有.
+   所以直接读代码.无法debug测试.
+   
+   
+   太复杂了.还是需要原始的makefile来编译,不能再自己gcc写了.
+   修改redis.c--------->他编译之后的东西是redis-server
+   
+   哇,又成功了.对gcc理解又牛逼了一点.
+   
+   下面写一下ziplist.c的终极调试方法.
+   1.我们使用把需要的main函数嵌套进redis.c里面来运行的方法.
+   2.首先修改ziplist.c里面的main函数启动上.也就是加入宏 #define ZIPLIST_TEST_MAIN   //开启测试吧.
+     这样下面main函数就启动了.把他改名为main2.防止跟redis.c重名.
+	 然后ziplist.h中加入main2函数的prototype
+	 之后redis.c的main函数里面include这个原型.之后make整个项目
+   3.launch里面配置成redis-server这个程序
+   4.main2里面加断点.运行debug即可.
+   makefile 里面加入 -g3 -gdwarf-2 编译选项.
+   具体就是DEBUG=-g -ggdb -g3 -gdwarf-2这个设置即可.
+   
+   
+   
+17.  注意一定要加上-O0  方便debug.不要进行任何代码优化!!!!!!
+	不然经常会出现bug,比如宏失效什么的!!!!!!!!
